@@ -9,7 +9,7 @@ export LC_ALL=C
 
 all: clean compile test
 
-test:
+test: compile
 	${EMACS} -Q -batch -L . -l tests/org-journal-test --eval="(ert-run-tests-batch-and-exit $(RUN:%='%) )"
 
 compile:
