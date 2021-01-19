@@ -123,6 +123,8 @@
    (let ((buffer "20181231")
          (new-entry (concat "** " (format-time-string org-journal-time-format))))
      (with-temp-buffer
+       (insert "* #\n")
+       (insert "* second extra heading\n")
        (insert "* Wednesday, 01/02/19\n")
        (insert "** a\n")
        (insert "** TODO a\n")
