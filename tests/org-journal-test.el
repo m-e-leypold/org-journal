@@ -10,7 +10,10 @@
 (require 'ert)
 (require 'org-journal)
 
-(defvar org-journal-dir-test (make-temp-file "org-journal-" t))
+
+(defvar org-journal-test-basedir (file-truename "_tests-state"))
+(defvar org-journal-dir-test (file-truename "_tests-state"))
+(defvar org-test-identifier nil)
 
 (defun org-journal-dir-test-setup ()
   "Create temporary directory."
@@ -20,9 +23,17 @@
   (make-symbolic-link org-journal-dir-test (concat org-journal-dir-test "-link") t)
   (org-journal-invalidate-cache))
 
-(defmacro org-journal-test-macro (&rest body)
+(defun org-journal-test-data-dir ()
+  (let ((org-journal-test-data-dir (concat "tests/data/" (symbol-name org-test-identifier))))
+    (if (file-exists-p org-journal-test-data-dir)
+	org-journal-test-data-dir
+      (error "no test data directory"))))
+
+(defmacro org-journal-test-macro (identifier &rest body)
   "Wrapp a `org-journal' -- `ert'-test with default values."
-  `(let* ((org-journal-dir (concat org-journal-dir-test "-link"))
+  `(let* ((org-test-identifier (quote ,identifier))
+	  (org-journal-dir-test (concat org-journal-test-basedir "/" (symbol-name org-test-identifier)))
+	  (org-journal-dir (concat org-journal-dir-test "-link"))
           (comment-start-skip "^\\s-*#\\(?: \\|$\\)")
           (org-journal--cache-file (expand-file-name  "org-journal.cache" org-journal-dir-test))
           (org-journal-file-type 'daily)
@@ -33,19 +44,19 @@
      (org-journal-invalidate-cache)
      (org-journal-dir-test-setup)
      ,@body
-     (delete-directory org-journal-dir-test t)
+     ; (delete-directory org-journal-dir-test t)
      (delete-file (concat org-journal-dir-test "-link"))))
 
 (ert-deftest org-journal-calendar-date-from-file-test ()
   "Should return a list with day/month/year"
-  (org-journal-test-macro
+  (org-journal-test-macro org-journal-calendar-date-from-file-test
    (should (equal (org-journal--file-name->calendar-date
                    (expand-file-name "20190103" (file-truename org-journal-dir)))
                   '(1 03 2019)))))
 
 (ert-deftest org-journal-convert-time-to-file-type-time-test ()
   "Testing"
-  (org-journal-test-macro
+  (org-journal-test-macro org-journal-convert-time-to-file-type-time-test
    (let ((time (current-time)))
      (should (equal (org-journal--convert-time-to-file-type-time time)
                     time))
@@ -64,7 +75,7 @@
 
 (ert-deftest org-journal-insert-header-test ()
   "Test insertion of header"
-  (org-journal-test-macro
+  (org-journal-test-macro org-journal-insert-header-test
    (let ((org-journal-file-header "#+TITLE: Some header\n#+STARTUP: folded"))
      (org-journal-new-entry t)
      (save-buffer)
@@ -76,7 +87,7 @@
 
 (ert-deftest org-journal-carryover-items-test ()
   "Org journal new entry test."
-  (org-journal-test-macro
+  (org-journal-test-macro org-journal-carryover-items-test
    (let ((org-journal-file-type 'weekly)
          ;; Always use english as time locale.
          (system-time-locale "C")
@@ -119,7 +130,7 @@
 
 (ert-deftest org-journal-carryover-keep-parents-test ()
   "Org journal new entry test for daily files."
-  (org-journal-test-macro
+  (org-journal-test-macro org-journal-carryover-keep-parents-test
    (let ((buffer "20181231")
          (new-entry (concat "** " (format-time-string org-journal-time-format))))
      (with-temp-buffer
@@ -149,9 +160,43 @@
                       (concat "* Test header\n** TODO a\n** b1\n*** TODO b1\n*** b2\n**** TODO b2\n**** b3\n***** TODO b3\n** TODO b\n" new-entry "\n")))
      )))
 
+(ert-deftest org-journal-carryover-keep-parents-test-2 ()
+  "Org journal new entry test for daily files."
+  (org-journal-test-macro org-journal-carryover-keep-parents-test-2
+   (let ((buffer "20181231")
+         (new-entry (concat "** " (format-time-string org-journal-time-format))))
+     (with-temp-buffer
+       (insert "* one\n")
+       (insert "* two\n")
+       (insert "* Wednesday, 01/02/19\n")
+       (insert "** a\n")
+       (insert "** TODO a\n")
+       (insert "** b1\n")
+       (insert "*** TODO b1\n")
+       (insert "*** DONE b1\n")
+       (insert "*** b1 note\n")
+       (insert "*** b2\n")
+       (insert "**** TODO b2\n")
+       (insert "**** b3\n")
+       (insert "***** TODO b3\n")
+       (insert "***** DONE b3\n")
+       (insert "** TODO b\n")
+       (insert "** 14:00 Some journal entry 2\n")
+       (write-file (expand-file-name buffer org-journal-dir-test))
+       (kill-buffer buffer))
+     (org-journal-new-entry nil)
+     (save-buffer)
+     (kill-buffer)
+     (kill-buffer buffer)
+     (should (string= (with-temp-buffer
+                        (insert-file-contents (org-journal--get-entry-path))
+                        (buffer-substring-no-properties (point-min) (point-max)))
+                      (concat "* Test header\n** TODO a\n** b1\n*** TODO b1\n*** b2\n**** TODO b2\n**** b3\n***** TODO b3\n** TODO b\n" new-entry "\n")))
+     )))
+
 (ert-deftest org-journal-carryover-delete-empty-journal-test ()
   "Org journal delete empty journal test"
-  (org-journal-test-macro
+  (org-journal-test-macro org-journal-carryover-delete-empty-journal-test
    (let ((buffer "20181231")
          (org-journal-carryover-delete-empty-journal 'always))
      ;; Test that journal file gets dumped, after carryover
@@ -187,7 +232,7 @@
 
 (ert-deftest org-journal-search-build-file-list-test ()
   "Test for `org-journal--search-build-file-list'."
-  (org-journal-test-macro
+  (org-journal-test-macro org-journal-search-build-file-list-test
    (let ((test-file-daily '("20170104" "20170312" "20190201"))
          (test-file-yearly '("20170101" "20180101" "20190101"))
          (test-file-weekly '("20170102" "20180430" "20181231"))
@@ -228,7 +273,7 @@
      (should (equal (length (org-journal--search-build-file-list period-start period-end)) 1)))))
 
 (ert-deftest org-journal-scheduled-carryover-yearly-test ()
-  (org-journal-test-macro
+  (org-journal-test-macro org-journal-scheduled-carryover-yearly-test
    (let ((org-journal-file-type 'yearly)
          (org-journal-created-property-timestamp-format "[%Y-%m-%d %a]")
          new-scheduled-date)
@@ -245,7 +290,7 @@
      (search-forward new-scheduled-date))))
 
 (ert-deftest org-journal-scheduled-carryover-daily-test ()
-  (org-journal-test-macro
+  (org-journal-test-macro org-journal-scheduled-carryover-daily-test
    (let ((org-journal-file-type 'daily)
          (org-journal-date-prefix "#+TITLE: ")
          (org-journal-time-prefix "* ")
