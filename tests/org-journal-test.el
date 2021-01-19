@@ -127,7 +127,7 @@
        (insert "* second extra heading\n")
        (insert "* Wednesday, 01/02/19\n")
        (insert "** a\n")
-       (insert "** b0\n")
+       (insert "** b0\n") 
        (insert "*** DONE b0\n")
        (insert "*** TODO b0\n")
        (insert "** DONE 0\n")
@@ -152,7 +152,7 @@
      (should (string= (with-temp-buffer
                         (insert-file-contents (org-journal--get-entry-path))
                         (buffer-substring-no-properties (point-min) (point-max)))
-                      (concat "* Test header\n** TODO a\n** b1\n*** TODO b1\n*** b2\n**** TODO b2\n**** b3\n***** TODO b3\n** TODO b\n" new-entry "\n")))
+                      (concat "* Test header\n** b0\n*** TODO b0\n** TODO a\n** b1\n*** TODO b1\n*** b2\n**** TODO b2\n**** b3\n***** TODO b3\n** TODO b\n" new-entry "\n")))
      )))
 
 (ert-deftest org-journal-carryover-delete-empty-journal-test ()
